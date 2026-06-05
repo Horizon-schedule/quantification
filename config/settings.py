@@ -105,6 +105,23 @@ class BacktestConfig:
 
 
 @dataclass
+class DataSourceConfig:
+    """免费数据源模块开关（详见 docs/DATA_SOURCES.md）。"""
+
+    primary: str = os.getenv("DATA_SOURCE_PRIMARY", "eastmoney")
+    fallback: str = os.getenv("DATA_SOURCE_FALLBACK", "none")
+    enable_minute_kline: bool = os.getenv("ENABLE_MINUTE_KLINE", "true").lower() == "true"
+    enable_financial_statements: bool = os.getenv("ENABLE_FINANCIAL_STATEMENTS", "true").lower() == "true"
+    enable_analyst_forecast: bool = os.getenv("ENABLE_ANALYST_FORECAST", "true").lower() == "true"
+    enable_northbound: bool = os.getenv("ENABLE_NORTHBOUND", "true").lower() == "true"
+    enable_dragon_tiger: bool = os.getenv("ENABLE_DRAGON_TIGER", "true").lower() == "true"
+    enable_shareholder: bool = os.getenv("ENABLE_SHAREHOLDER", "true").lower() == "true"
+    enable_cninfo_link: bool = os.getenv("ENABLE_CNINFO_LINK", "true").lower() == "true"
+    enable_level2: bool = os.getenv("ENABLE_LEVEL2", "false").lower() == "true"
+    extended_api_interval: float = float(os.getenv("EXTENDED_API_INTERVAL", "0.6"))
+
+
+@dataclass
 class MonitorConfig:
     poll_interval: float = float(os.getenv("MONITOR_POLL_INTERVAL", "5"))
     default_watchlist: List[str] = field(
@@ -120,6 +137,7 @@ class Settings:
     alert: AlertConfig = field(default_factory=AlertConfig)
     backtest: BacktestConfig = field(default_factory=BacktestConfig)
     monitor: MonitorConfig = field(default_factory=MonitorConfig)
+    data_source: DataSourceConfig = field(default_factory=DataSourceConfig)
     log_level: str = os.getenv("LOG_LEVEL", "INFO")
     log_dir: str = os.getenv("LOG_DIR", str(BASE_DIR / "logs"))
     output_dir: str = os.getenv("OUTPUT_DIR", str(BASE_DIR / "output"))

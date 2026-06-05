@@ -4,6 +4,7 @@
 
 const App = {
     currentCode: '600519',
+    currentTab: 'market',
 
     init() {
         this.bindEvents();
@@ -11,7 +12,13 @@ const App = {
         this.loadKline();
         this.loadWatchlist();
         this.loadBacktestHistory();
-        document.getElementById('btn-export').href = `/api/export/kline/${this.currentCode}?limit=500`;
+        this.updateExportLink();
+    },
+
+    updateExportLink() {
+        const period = document.getElementById('kline-period')?.value || '101';
+        document.getElementById('btn-export').href =
+            `/api/export/kline/${this.currentCode}?limit=500&period=${period}`;
     },
 
     bindEvents() {
@@ -26,9 +33,14 @@ const App = {
         document.querySelectorAll('.nav-tab').forEach(tab => {
             tab.addEventListener('click', () => this.switchTab(tab.dataset.tab));
         });
+        document.getElementById('kline-period').addEventListener('change', () => {
+            this.updateExportLink();
+            this.loadKline();
+        });
     },
 
     switchTab(name) {
+        this.currentTab = name;
         document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
         document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.id === `pane-${name}`));
         if (name === 'watch') this.pollWatch();
@@ -55,7 +67,7 @@ const App = {
         const code = document.getElementById('code-input').value.trim();
         if (!code) return;
         this.currentCode = code;
-        document.getElementById('btn-export').href = `/api/export/kline/${code}?limit=500`;
+        this.updateExportLink();
         this.loadQuote();
         this.loadKline();
         if (this.currentTab === 'fundamental') {
@@ -89,8 +101,9 @@ const App = {
     async loadKline() {
         const container = document.getElementById('kline-chart');
         container.innerHTML = '<div class="loading"><div class="spinner"></div>加载 K 线...</div>';
+        const period = document.getElementById('kline-period')?.value || '101';
         try {
-            const data = await this.api(`/api/kline/${this.currentCode}?limit=200`);
+            const data = await this.api(`/api/kline/${this.currentCode}?limit=200&period=${period}`);
             this.renderCandlestick(data, container);
             this.renderVolume(data);
             this.renderMacd(data);
@@ -365,9 +378,91 @@ const App = {
 
             this.renderEventList('fundamental-contracts', data.contracts, '暂无重大合同公告');
             this.renderEventList('fundamental-bids', data.bid_wins, '暂无中标公告');
+            this.renderExtended(data.extended || {});
         } catch (e) {
             profileEl.innerHTML = `<div class="empty-state">${e.message}</div>`;
         }
+    },
+
+    renderExtended(ext) {
+        const avail = ext.availability || {};
+        document.getElementById('fundamental-extended-status').innerHTML = [
+            ['分钟K线', avail.minute_kline],
+            ['三大报表', avail.financial_statements],
+            ['盈利预测', avail.analyst_forecast],
+            ['北向资金', avail.northbound],
+            ['龙虎榜', avail.dragon_tiger],
+            ['股东研究', avail.shareholder],
+            ['巨潮PDF', avail.cninfo_pdf],
+        ].map(([label, on]) => this.metricCard(label, on ? '已启用' : '已关闭')).join('');
+
+        const fc = ext.analyst_forecast || {};
+        const pred = fc.predict_eps || {};
+        document.getElementById('fundamental-forecast').innerHTML = `
+            <div class="metrics-grid" style="margin-bottom:8px">
+                ${this.metricCard('覆盖机构', fc.rating_org_num ?? '-')}
+                ${this.metricCard('买入/增持', `${fc.rating_buy ?? 0}/${fc.rating_add ?? 0}`)}
+                ${this.metricCard('中性', fc.rating_neutral ?? '-')}
+                ${this.metricCard('减持/卖出', `${fc.rating_reduce ?? 0}/${fc.rating_sell ?? 0}`)}
+            </div>
+            <p style="font-size:13px;color:var(--text-secondary)">
+                EPS 预测：${pred.year1 || '-'} → ${pred.eps1 ?? '-'}，
+                ${pred.year2 || '-'} → ${pred.eps2 ?? '-'}，
+                ${pred.year3 || '-'} → ${pred.eps3 ?? '-'}
+            </p>
+            ${(fc.reports || []).slice(0, 5).map(r => `
+                <div style="font-size:12px;padding:6px 0;border-bottom:1px solid var(--border)">
+                    ${r.publish_date} · ${r.org} · ${r.rating}<br>${r.title}
+                </div>`).join('') || '<div class="empty-state">暂无研报</div>'}`;
+
+        const sh = ext.shareholder || {};
+        document.getElementById('fundamental-holders').innerHTML = `
+            <p style="font-size:13px;margin-bottom:8px">股东人数：${sh.holder_count ?? '-'} ${sh.holder_count_change ? `(变化 ${sh.holder_count_change})` : ''}</p>
+            ${(sh.top10_holders || []).map(h => `
+                <div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0">
+                    <span>${h.name}</span><span>${h.shares || '-'} (${h.ratio ?? '-'}%)</span>
+                </div>`).join('') || '<div class="empty-state">暂无股东数据</div>'}`;
+
+        const lhb = ext.dragon_tiger || [];
+        document.getElementById('fundamental-lhb').innerHTML = lhb.length
+            ? lhb.map(r => `<tr>
+                <td>${r.date}</td><td>${r.change_pct ?? '-'}%</td>
+                <td>${r.turnover || '-'}</td><td>${r.reason || '-'}</td></tr>`).join('')
+            : '<tr><td colspan="4" class="empty-state">暂无龙虎榜记录</td></tr>';
+
+        const stmts = ext.financial_statements || {};
+        const stmtHtml = ['income', 'balance', 'cashflow'].map(key => {
+            const rows = stmts[key] || [];
+            if (!rows.length) return '';
+            const title = { income: '利润表', balance: '资产负债表', cashflow: '现金流量表' }[key];
+            return `<div style="margin-bottom:12px"><strong>${title}</strong>
+                ${rows.slice(0, 3).map(r => `<div style="font-size:12px;color:var(--text-secondary)">${r.report_date}</div>`).join('')}
+            </div>`;
+        }).join('');
+        document.getElementById('fundamental-statements').innerHTML = stmtHtml || '<div class="empty-state">暂无报表数据</div>';
+
+        const nb = (ext.northbound_market || []).slice().reverse();
+        if (nb.length) {
+            Plotly.newPlot('fundamental-northbound-chart', [{
+                x: nb.map(r => r.date), y: nb.map(r => r.net_buy_raw),
+                type: 'bar', name: '净买入(元)',
+                marker: { color: nb.map(r => (r.net_buy_raw >= 0 ? '#ef4444' : '#10b981')) },
+            }], {
+                paper_bgcolor: '#1a2332', plot_bgcolor: '#111827', font: { color: '#e8edf5' },
+                xaxis: { gridcolor: '#2d3a4f' }, yaxis: { gridcolor: '#2d3a4f', title: '净买入' },
+                margin: { t: 20, b: 60, l: 60, r: 20 }, height: 280,
+            }, { responsive: true, displayModeBar: false });
+        } else {
+            document.getElementById('fundamental-northbound-chart').innerHTML =
+                '<div class="empty-state">北向数据未启用或无数据</div>';
+        }
+
+        const cn = ext.cninfo || {};
+        document.getElementById('fundamental-cninfo').innerHTML = cn.disclosure_search
+            ? `公告 PDF 原文（巨潮资讯，免费）：<a href="${cn.disclosure_search}" target="_blank" style="color:var(--accent)">检索 ${ext.code} 公告</a>
+               · <a href="${cn.company_page}" target="_blank" style="color:var(--accent)">公司披露页</a>
+               ${ext.level2_note ? `<br><span style="color:#f59e0b">${ext.level2_note}</span>` : ''}`
+            : '';
     },
 
     renderEventList(elId, events, emptyText) {

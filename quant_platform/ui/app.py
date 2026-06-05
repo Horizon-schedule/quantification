@@ -22,6 +22,7 @@ from quant_platform.data.repository import DataRepository
 from quant_platform.factors.basic import FactorEngine
 from quant_platform.indicators.technical import TechnicalIndicators
 from quant_platform.monitor.watcher import MarketWatcher
+from quant_platform.api.models import KlinePeriod
 from quant_platform.data.fundamental_service import FundamentalService
 from quant_platform.strategy import (
     BOLLStrategy,
@@ -97,7 +98,10 @@ def create_app() -> Flask:
     @app.route("/api/kline/<code>")
     def api_kline(code: str):
         limit = request.args.get("limit", 200, type=int)
-        df = repo.get_kline_df(code, limit=limit)
+        period_key = request.args.get("period", "101")
+        period_map = {p.value: p for p in KlinePeriod}
+        period = period_map.get(period_key, KlinePeriod.DAILY)
+        df = repo.get_kline_df(code, period=period, limit=limit)
         if df.empty:
             return jsonify({"error": "无 K 线数据"}), 404
         df = TechnicalIndicators.calc_all(df)
@@ -239,6 +243,46 @@ def create_app() -> Flask:
             logger.error("基本面数据获取失败 %s: %s", code, exc)
             return jsonify({"error": f"基本面数据获取失败: {exc}"}), 500
 
+    @app.route("/api/extended/<code>")
+    def api_extended(code: str):
+        """获取扩展免费数据（三大报表、北向、龙虎榜等）。"""
+        try:
+            return jsonify(fundamental.get_extended_only(code))
+        except Exception as exc:
+            logger.error("扩展数据获取失败 %s: %s", code, exc)
+            return jsonify({"error": f"扩展数据获取失败: {exc}"}), 500
+
+    @app.route("/api/northbound")
+    def api_northbound():
+        """北向资金市场历史流向。"""
+        days = request.args.get("days", 30, type=int)
+        try:
+            rows = fundamental.extended.get_northbound_flow(days=days)
+            return jsonify({"days": days, "data": rows})
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 500
+
+    @app.route("/api/data-sources")
+    def api_data_sources():
+        """当前数据源配置与可用性说明。"""
+        cfg = get_settings().data_source
+        return jsonify({
+            "primary": cfg.primary,
+            "fallback": cfg.fallback,
+            "modules": {
+                "minute_kline": cfg.enable_minute_kline,
+                "financial_statements": cfg.enable_financial_statements,
+                "analyst_forecast": cfg.enable_analyst_forecast,
+                "northbound": cfg.enable_northbound,
+                "dragon_tiger": cfg.enable_dragon_tiger,
+                "shareholder": cfg.enable_shareholder,
+                "cninfo_pdf": cfg.enable_cninfo_link,
+                "level2": cfg.enable_level2,
+            },
+            "requires_api_key": False,
+            "doc": "/docs/DATA_SOURCES.md",
+        })
+
     @app.route("/api/screener", methods=["POST"])
     def api_screener():
         """条件选股。"""
@@ -258,7 +302,10 @@ def create_app() -> Flask:
     def api_export_kline(code: str):
         """导出 K 线 CSV。"""
         limit = request.args.get("limit", 500, type=int)
-        df = repo.get_kline_df(code, limit=limit)
+        period_key = request.args.get("period", "101")
+        period_map = {p.value: p for p in KlinePeriod}
+        period = period_map.get(period_key, KlinePeriod.DAILY)
+        df = repo.get_kline_df(code, period=period, limit=limit)
         if df.empty:
             return jsonify({"error": "无数据"}), 404
         df = TechnicalIndicators.calc_all(df)

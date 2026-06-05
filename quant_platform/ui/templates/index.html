@@ -115,10 +115,59 @@
                     <div id="fundamental-bids"><div class="empty-state">暂无相关公告</div></div>
                 </div>
             </div>
+            <div class="card">
+                <div class="card-title">扩展数据（免费 · 东方财富 / 巨潮）</div>
+                <div id="fundamental-extended-status" class="metrics-grid" style="margin-bottom:12px"></div>
+                <div class="chart-row">
+                    <div class="card" style="flex:1">
+                        <div class="card-title">机构盈利预测</div>
+                        <div id="fundamental-forecast"><div class="empty-state">加载中...</div></div>
+                    </div>
+                    <div class="card" style="flex:1">
+                        <div class="card-title">十大股东</div>
+                        <div id="fundamental-holders"><div class="empty-state">加载中...</div></div>
+                    </div>
+                </div>
+                <div class="chart-row">
+                    <div class="card" style="flex:1">
+                        <div class="card-title">龙虎榜</div>
+                        <div style="overflow-x:auto">
+                            <table class="data-table">
+                                <thead><tr><th>日期</th><th>涨跌幅</th><th>成交额</th><th>上榜原因</th></tr></thead>
+                                <tbody id="fundamental-lhb"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="card" style="flex:1">
+                        <div class="card-title">三大报表摘要</div>
+                        <div id="fundamental-statements"><div class="empty-state">加载中...</div></div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-title">北向资金（市场近30日）</div>
+                    <div id="fundamental-northbound-chart" style="min-height:280px"></div>
+                </div>
+                <div id="fundamental-cninfo" style="margin-top:8px;font-size:13px;color:var(--text-secondary)"></div>
+            </div>
         </div>
 
         <div id="pane-market" class="tab-pane active">
-            <div class="card"><div id="kline-chart" class="chart-container"></div></div>
+            <div class="card">
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+                    <span style="font-size:13px;color:var(--text-secondary)">K线周期</span>
+                    <select id="kline-period" style="width:120px">
+                        <option value="101" selected>日K</option>
+                        <option value="1">1分钟</option>
+                        <option value="5">5分钟</option>
+                        <option value="15">15分钟</option>
+                        <option value="30">30分钟</option>
+                        <option value="60">60分钟</option>
+                        <option value="102">周K</option>
+                        <option value="103">月K</option>
+                    </select>
+                </div>
+                <div id="kline-chart" class="chart-container"></div>
+            </div>
             <div class="chart-row">
                 <div class="card"><div id="volume-chart"></div></div>
                 <div class="card"><div id="macd-chart"></div></div>

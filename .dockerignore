@@ -1,0 +1,14 @@
+.git
+.env
+__pycache__
+*.pyc
+*.pyo
+*.db
+logs/
+output/
+data/
+.venv
+venv/
+.idea
+.vscode
+*.log

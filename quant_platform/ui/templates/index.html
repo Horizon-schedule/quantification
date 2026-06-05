@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StopQuant 量化研究平台</title>
+    <link rel="stylesheet" href="/static/css/app.css">
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+</head>
+<body>
+
+<header class="topbar">
+    <div class="logo">StopQuant <span>量化研究平台</span></div>
+    <div class="search-box">
+        <input id="code-input" type="text" placeholder="输入股票代码，如 600519" value="600519">
+        <button id="btn-search" class="btn">查询</button>
+        <a id="btn-export" class="btn btn-outline btn-sm" href="#" title="导出K线CSV">导出</a>
+    </div>
+    <div id="quote-bar" class="quote-bar"><span style="color:var(--text-secondary)">加载中...</span></div>
+</header>
+
+<div class="layout">
+    <aside class="sidebar">
+        <div class="card">
+            <div class="card-title">策略回测</div>
+            <div class="form-group">
+                <label>选择策略</label>
+                <select id="strategy-select">
+                    <option value="ma">均线策略</option>
+                    <option value="macd">MACD策略</option>
+                    <option value="kdj">KDJ策略</option>
+                    <option value="volume">成交量策略</option>
+                    <option value="boll">BOLL策略</option>
+                    <option value="rsi">RSI策略</option>
+                    <option value="combo">多指标共振</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>初始资金</label>
+                <input id="capital-input" type="number" value="200000" step="10000">
+            </div>
+            <div class="form-group">
+                <label>基准指数</label>
+                <input id="benchmark-input" type="text" value="000300" placeholder="000300">
+            </div>
+            <button id="btn-backtest" class="btn" style="width:100%;margin-top:4px">开始回测</button>
+            <button id="btn-compare" class="btn btn-outline" style="width:100%;margin-top:6px">策略对比</button>
+            <button id="btn-optimize" class="btn btn-outline" style="width:100%;margin-top:6px">参数优化</button>
+        </div>
+        <div class="card">
+            <div class="card-title">条件选股</div>
+            <div class="form-group">
+                <select id="screener-select">
+                    <option value="ma_golden_cross">均线金叉</option>
+                    <option value="macd_golden_cross">MACD金叉</option>
+                    <option value="rsi_oversold">RSI超卖</option>
+                    <option value="volume_breakout">放量突破</option>
+                    <option value="boll_lower_touch">布林下轨</option>
+                </select>
+            </div>
+            <button id="btn-screener" class="btn" style="width:100%">执行选股</button>
+        </div>
+        <div class="card">
+            <div class="card-title">盯盘池</div>
+            <div style="display:flex;gap:8px;margin-bottom:8px">
+                <input id="watch-code" type="text" placeholder="代码" style="flex:1">
+                <button id="btn-add-watch" class="btn btn-sm">添加</button>
+            </div>
+            <div id="watchlist"></div>
+            <button id="btn-poll-watch" class="btn btn-outline" style="width:100%;margin-top:8px">刷新行情</button>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <div class="nav-tabs">
+            <button class="nav-tab" data-tab="fundamental">基本面</button>
+            <button class="nav-tab active" data-tab="market">行情分析</button>
+            <button class="nav-tab" data-tab="backtest">回测结果</button>
+            <button class="nav-tab" data-tab="compare">策略对比</button>
+            <button class="nav-tab" data-tab="screener">选股结果</button>
+            <button class="nav-tab" data-tab="factors">因子分析</button>
+            <button class="nav-tab" data-tab="watch">实时盯盘</button>
+            <button class="nav-tab" data-tab="history">历史记录</button>
+        </div>
+
+        <div id="pane-fundamental" class="tab-pane">
+            <div class="card"><div id="fundamental-profile"><div class="empty-state">切换到本页或查询个股后自动加载</div></div></div>
+            <div class="card">
+                <div class="card-title">最新财务摘要</div>
+                <div id="fundamental-summary" class="metrics-grid"></div>
+            </div>
+            <div class="card">
+                <div class="card-title">营收与净利润趋势（亿元）</div>
+                <div id="fundamental-revenue-chart" style="min-height:320px"></div>
+            </div>
+            <div class="card">
+                <div class="card-title">季度/年度财务明细</div>
+                <div style="overflow-x:auto">
+                    <table class="data-table">
+                        <thead><tr>
+                            <th>报告期</th><th>类型</th><th>营业收入</th><th>营收同比</th>
+                            <th>净利润</th><th>利润同比</th><th>EPS</th><th>ROE</th><th>毛利率</th>
+                        </tr></thead>
+                        <tbody id="fundamental-table"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="chart-row">
+                <div class="card">
+                    <div class="card-title">重大合同公告</div>
+                    <div id="fundamental-contracts"><div class="empty-state">暂无相关公告</div></div>
+                </div>
+                <div class="card">
+                    <div class="card-title">中标公告</div>
+                    <div id="fundamental-bids"><div class="empty-state">暂无相关公告</div></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="pane-market" class="tab-pane active">
+            <div class="card"><div id="kline-chart" class="chart-container"></div></div>
+            <div class="chart-row">
+                <div class="card"><div id="volume-chart"></div></div>
+                <div class="card"><div id="macd-chart"></div></div>
+            </div>
+            <div class="chart-row">
+                <div class="card"><div id="rsi-chart"></div></div>
+                <div class="card"><div id="kdj-chart"></div></div>
+            </div>
+        </div>
+
+        <div id="pane-backtest" class="tab-pane">
+            <div class="card"><div id="backtest-result"><div class="empty-state">点击「开始回测」查看结果</div></div></div>
+            <div class="card"><div class="card-title">收益曲线 vs 基准</div><div id="equity-chart" style="min-height:300px"></div></div>
+        </div>
+
+        <div id="pane-compare" class="tab-pane">
+            <div class="card"><div id="compare-table"><div class="empty-state">点击侧边栏「策略对比」</div></div></div>
+            <div class="card"><div id="compare-chart" style="min-height:350px"></div></div>
+        </div>
+
+        <div id="pane-screener" class="tab-pane">
+            <div class="card">
+                <table class="data-table">
+                    <thead><tr><th>代码</th><th>收盘价</th><th>涨跌幅</th><th>信号</th><th>日期</th><th>操作</th></tr></thead>
+                    <tbody id="screener-table"><tr><td colspan="6" class="empty-state">点击「执行选股」</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="pane-factors" class="tab-pane">
+            <div class="card"><div id="factor-values"><div class="empty-state">切换到本页自动加载因子</div></div></div>
+            <div class="card">
+                <div class="card-title">因子 IC 检验</div>
+                <table class="data-table">
+                    <thead><tr><th>因子</th><th>IC均值</th><th>IC标准差</th><th>IC_IR</th><th>前瞻天数</th></tr></thead>
+                    <tbody id="factor-ic-table"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="pane-watch" class="tab-pane">
+            <div class="card">
+                <table class="data-table">
+                    <thead><tr><th>代码</th><th>名称</th><th>最新价</th><th>涨跌幅</th><th>成交量</th></tr></thead>
+                    <tbody id="watch-table"><tr><td colspan="5" class="empty-state">点击「刷新行情」</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="pane-history" class="tab-pane">
+            <div class="card">
+                <table class="data-table">
+                    <thead><tr><th>时间</th><th>策略</th><th>标的</th><th>累计收益</th><th>最大回撤</th><th>交易次数</th><th>导出</th></tr></thead>
+                    <tbody id="history-table"><tr><td colspan="7" class="empty-state">加载中...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="footer-note">本平台仅用于金融学习与策略研究，无实盘交易功能 | 数据来源：东方财富公开 API</div>
+    </main>
+</div>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>

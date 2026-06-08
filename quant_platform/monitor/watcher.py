@@ -39,7 +39,7 @@ class MarketWatcher:
         self.repo = repository or DataRepository()
         self.alert = alert or AlertManager()
         self.config = config or get_settings().monitor
-        self.db = DatabaseManager()
+        self.db = getattr(self.repo, "db", None) or DatabaseManager()
         self._running = False
         self._thread: Optional[threading.Thread] = None
         self._strategies: Dict[str, BaseStrategy] = {}

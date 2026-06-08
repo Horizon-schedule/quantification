@@ -79,7 +79,7 @@ def create_app() -> Flask:
     output_dir = Path(settings.output_dir)
 
     repo = DataRepository()
-    db = DatabaseManager()
+    db = repo.db
     watcher = MarketWatcher(repository=repo)
     screener = StockScreener(repository=repo)
     fundamental = FundamentalService()
@@ -91,6 +91,11 @@ def create_app() -> Flask:
     @app.route("/output/<path:filename>")
     def serve_output(filename: str):
         return send_from_directory(output_dir, filename)
+
+    @app.route("/api/health/live")
+    def api_health_live():
+        """存活探针：不依赖数据库，供 Docker / Nginx 快速检查。"""
+        return jsonify({"status": "ok"})
 
     @app.route("/api/health")
     def api_health():

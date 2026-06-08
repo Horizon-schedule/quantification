@@ -165,6 +165,7 @@ docker compose restart
 | 现象 | 原因 | 解决 |
 |------|------|------|
 | 502 | App 未启动 | `docker compose logs app` |
+| Empty reply | Worker 未就绪 / RDS 连接超时 | `./scripts/diagnose_ecs.sh` |
 | 502 | Nginx 端口错 | 确认 `proxy_pass http://127.0.0.1:8000` |
 | 端口冲突 | 8000 被占用 | `.env` 改 `APP_BIND_PORT=8001` 并同步 Nginx |
 | database: false | RDS 连接失败 | 白名单、账号密码 |

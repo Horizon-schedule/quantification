@@ -60,13 +60,16 @@ echo "[3/4] 等待健康检查..."
 sleep 15
 
 echo "[4/4] 验证部署..."
-HTTP_PORT=${HTTP_PORT:-80}
-if curl -sf "http://127.0.0.1:${HTTP_PORT}/api/health" > /dev/null; then
+APP_BIND_PORT=${APP_BIND_PORT:-8000}
+if curl -sf "http://127.0.0.1:${APP_BIND_PORT}/api/health" > /dev/null; then
     echo ""
     echo "=========================================="
     echo " 部署成功！"
-    echo " 访问地址: http://$(curl -s ifconfig.me 2>/dev/null || echo '你的ECS公网IP'):${HTTP_PORT}"
-    echo " 健康检查: http://127.0.0.1:${HTTP_PORT}/api/health"
+    echo " App 监听: http://127.0.0.1:${APP_BIND_PORT}"
+    echo " 健康检查: http://127.0.0.1:${APP_BIND_PORT}/api/health"
+    echo ""
+    echo " 请在 ECS 宿主机 Nginx 中配置反代，示例见："
+    echo "   docs/examples/nginx-host-stopquant.conf"
     echo "=========================================="
     docker compose ps
 else

@@ -9,13 +9,11 @@ services:
       - .env
     environment:
       - TZ=Asia/Shanghai
+    ports:
+      - "${APP_BIND_PORT:-8000}:8000"
     volumes:
       - app_logs:/app/logs
       - app_output:/app/output
-    expose:
-      - "8000"
-    networks:
-      - stopquant-net
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health')"]
       interval: 30s
@@ -23,25 +21,6 @@ services:
       retries: 3
       start_period: 40s
 
-  nginx:
-    image: nginx:1.25-alpine
-    container_name: stopquant-nginx
-    restart: unless-stopped
-    ports:
-      - "${HTTP_PORT:-80}:80"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - app_output:/app/output:ro
-    depends_on:
-      app:
-        condition: service_healthy
-    networks:
-      - stopquant-net
-
 volumes:
   app_logs:
   app_output:
-
-networks:
-  stopquant-net:
-    driver: bridge

@@ -7,9 +7,11 @@ from __future__ import annotations
 import csv
 import io
 import json
+from pathlib import Path
 from typing import Any, Dict, List
 
-from flask import Flask, Response, jsonify, render_template, request
+from flask import Flask, Response, jsonify, render_template, request, send_from_directory
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from config.settings import BacktestConfig, get_settings, reload_settings
 from quant_platform.backtest.comparator import StrategyComparator
@@ -22,6 +24,7 @@ from quant_platform.data.repository import DataRepository
 from quant_platform.factors.basic import FactorEngine
 from quant_platform.indicators.technical import TechnicalIndicators
 from quant_platform.monitor.watcher import MarketWatcher
+from quant_platform.screener.screener import StockScreener
 from quant_platform.api.models import KlinePeriod
 from quant_platform.data.fundamental_service import FundamentalService
 from quant_platform.strategy import (
@@ -71,6 +74,9 @@ def create_app() -> Flask:
 
     app = Flask(__name__, template_folder="templates", static_folder="static")
     app.config["SECRET_KEY"] = settings.secret_key
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
+    output_dir = Path(settings.output_dir)
 
     repo = DataRepository()
     db = DatabaseManager()
@@ -81,6 +87,10 @@ def create_app() -> Flask:
     @app.route("/")
     def index():
         return render_template("index.html")
+
+    @app.route("/output/<path:filename>")
+    def serve_output(filename: str):
+        return send_from_directory(output_dir, filename)
 
     @app.route("/api/health")
     def api_health():

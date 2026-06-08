@@ -27,6 +27,20 @@ from quant_platform.utils.logger import get_logger
 
 logger = get_logger("api.eastmoney")
 
+
+def _safe_float(value: Any, default: float = 0.0) -> float:
+    """安全转换东方财富 K 线字段（空值 / '-' 常见于周K、月K）。"""
+    if value is None:
+        return default
+    text = str(value).strip()
+    if not text or text == "-":
+        return default
+    try:
+        return float(text)
+    except (TypeError, ValueError):
+        return default
+
+
 # 东方财富公开 API 基础地址
 BASE_QUOTE_URL = "https://push2.eastmoney.com/api/qt"
 BASE_KLINE_URL = "https://push2his.eastmoney.com/api/qt/stock/kline/get"
@@ -132,9 +146,10 @@ class EastMoneyAPI:
         }
         data = self.client.get(BASE_KLINE_URL, params=params)
 
-        klines_raw = data.get("data", {}).get("klines", [])
+        raw = data.get("data") or {}
+        klines_raw = raw.get("klines") or []
         if not klines_raw:
-            logger.warning("K 线数据为空: %s", security.code)
+            logger.warning("K 线数据为空: %s period=%s", security.code, period.value)
             return []
 
         bars: List[KlineBar] = []
@@ -142,19 +157,22 @@ class EastMoneyAPI:
             parts = line.split(",")
             if len(parts) < 7:
                 continue
-            bars.append(
-                KlineBar(
-                    datetime=parts[0],
-                    open=float(parts[1]),
-                    close=float(parts[2]),
-                    high=float(parts[3]),
-                    low=float(parts[4]),
-                    volume=float(parts[5]),
-                    amount=float(parts[6]),
-                    change_pct=float(parts[8]) if len(parts) > 8 else 0.0,
-                    turnover_rate=float(parts[10]) if len(parts) > 10 else 0.0,
+            try:
+                bars.append(
+                    KlineBar(
+                        datetime=parts[0],
+                        open=_safe_float(parts[1]),
+                        close=_safe_float(parts[2]),
+                        high=_safe_float(parts[3]),
+                        low=_safe_float(parts[4]),
+                        volume=_safe_float(parts[5]),
+                        amount=_safe_float(parts[6]),
+                        change_pct=_safe_float(parts[8]) if len(parts) > 8 else 0.0,
+                        turnover_rate=_safe_float(parts[10]) if len(parts) > 10 else 0.0,
+                    )
                 )
-            )
+            except (IndexError, TypeError) as exc:
+                logger.debug("跳过无效 K 线行 %s: %s", security.code, exc)
         return bars
 
     def get_intraday(self, security: SecurityInfo) -> List[IntradayPoint]:

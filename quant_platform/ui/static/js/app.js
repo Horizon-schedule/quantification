@@ -58,7 +58,13 @@ const App = {
 
     async api(url, options = {}) {
         const resp = await fetch(url, options);
-        const data = await resp.json();
+        const text = await resp.text();
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch {
+            throw new Error(resp.ok ? '响应格式错误' : `请求失败 (${resp.status})`);
+        }
         if (!resp.ok) throw new Error(data.error || '请求失败');
         return data;
     },
@@ -100,7 +106,12 @@ const App = {
 
     async loadKline() {
         const container = document.getElementById('kline-chart');
+        const subCharts = ['volume-chart', 'macd-chart', 'rsi-chart', 'kdj-chart'];
         container.innerHTML = '<div class="loading"><div class="spinner"></div>加载 K 线...</div>';
+        subCharts.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = '';
+        });
         const period = document.getElementById('kline-period')?.value || '101';
         try {
             const data = await this.api(`/api/kline/${this.currentCode}?limit=200&period=${period}`);

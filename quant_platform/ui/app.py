@@ -7,10 +7,12 @@ from __future__ import annotations
 import csv
 import io
 import json
+import math
 from pathlib import Path
 from typing import Any, Dict, List
 
 from flask import Flask, Response, jsonify, render_template, request, send_from_directory
+from werkzeug.exceptions import HTTPException
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from config.settings import BacktestConfig, get_settings, reload_settings
@@ -75,6 +77,15 @@ def create_app() -> Flask:
     app = Flask(__name__, template_folder="templates", static_folder="static")
     app.config["SECRET_KEY"] = settings.secret_key
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
+    @app.errorhandler(Exception)
+    def handle_api_exception(exc):
+        if isinstance(exc, HTTPException):
+            raise exc
+        if not request.path.startswith("/api/"):
+            raise exc
+        logger.exception("API 异常 %s: %s", request.path, exc)
+        return jsonify({"error": str(exc)}), 500
 
     output_dir = Path(settings.output_dir)
 
@@ -393,7 +404,8 @@ def _df_to_records(df) -> List[Dict[str, Any]]:
             if hasattr(val, "item"):
                 val = val.item()
             try:
-                record[col] = round(float(val), 4) if val == val else None
+                val = float(val)
+                record[col] = round(val, 4) if math.isfinite(val) else None
             except (TypeError, ValueError):
                 record[col] = val
         records.append(record)

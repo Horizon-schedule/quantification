@@ -66,14 +66,17 @@ class DataRepository:
         need_fetch = force_refresh or len(local_rows) < min(limit, 50)
 
         if need_fetch:
-            logger.info("从 API 获取 K 线: %s", code)
-            bars = self.api.get_kline(security, period, adjust, limit=limit)
-            if bars:
-                rows = [b.to_dict() for b in bars]
-                self.db.upsert_klines(code, period_val, adjust_val, rows)
-                local_rows = self.db.get_klines(
-                    code, period_val, adjust_val, limit=limit
-                )
+            logger.info("从 API 获取 K 线: %s period=%s", code, period_val)
+            try:
+                bars = self.api.get_kline(security, period, adjust, limit=limit)
+                if bars:
+                    rows = [b.to_dict() for b in bars]
+                    self.db.upsert_klines(code, period_val, adjust_val, rows)
+                    local_rows = self.db.get_klines(
+                        code, period_val, adjust_val, limit=limit
+                    )
+            except Exception as exc:
+                logger.error("API 获取 K 线失败 %s period=%s: %s", code, period_val, exc)
 
         if not local_rows:
             logger.warning("无 K 线数据: %s", code)
@@ -86,7 +89,11 @@ class DataRepository:
     def get_realtime_quotes(self, codes: List[str]) -> pd.DataFrame:
         """批量获取实时行情并缓存。"""
         securities = [SecurityInfo.from_code(c) for c in codes]
-        quotes = self.api.get_realtime_quote(securities)
+        try:
+            quotes = self.api.get_realtime_quote(securities)
+        except Exception as exc:
+            logger.error("API 获取行情失败 %s: %s", codes, exc)
+            return pd.DataFrame()
 
         records = []
         for q in quotes:

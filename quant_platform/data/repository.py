@@ -10,6 +10,7 @@ from typing import List, Optional
 import pandas as pd
 
 from quant_platform.api.eastmoney import EastMoneyAPI
+from quant_platform.api.kline_provider import KlineProvider
 from quant_platform.api.models import AdjustType, KlinePeriod, SecurityInfo
 from quant_platform.data.cleaner import DataCleaner
 from quant_platform.data.database import DatabaseManager
@@ -29,9 +30,11 @@ class DataRepository:
         self,
         db: Optional[DatabaseManager] = None,
         api: Optional[EastMoneyAPI] = None,
+        kline: Optional[KlineProvider] = None,
     ):
         self.db = db or DatabaseManager()
         self.api = api or EastMoneyAPI()
+        self.kline = kline or KlineProvider(primary=self.api)
         self.cleaner = DataCleaner()
 
     def get_kline_df(
@@ -68,7 +71,7 @@ class DataRepository:
         if need_fetch:
             logger.info("从 API 获取 K 线: %s period=%s", code, period_val)
             try:
-                bars = self.api.get_kline(security, period, adjust, limit=limit)
+                bars = self.kline.get_kline(security, period, adjust, limit=limit)
                 if bars:
                     rows = [b.to_dict() for b in bars]
                     self.db.upsert_klines(code, period_val, adjust_val, rows)
@@ -149,4 +152,4 @@ class DataRepository:
 
     def close(self) -> None:
         """释放资源。"""
-        self.api.close()
+        self.kline.close()

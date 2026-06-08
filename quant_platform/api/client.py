@@ -84,6 +84,7 @@ class HttpClient:
         self,
         url: str,
         params: Optional[Dict[str, Any]] = None,
+        headers: Optional[Dict[str, str]] = None,
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """
@@ -106,9 +107,11 @@ class HttpClient:
         for attempt in range(1, self.config.max_retries + 1):
             try:
                 self._rate_limit()
+                req_headers = headers or {}
                 response = self._session.get(
                     url,
                     params=params,
+                    headers=req_headers,
                     timeout=self.config.timeout,
                     **kwargs,
                 )

@@ -55,8 +55,13 @@ class EastMoneyAPI:
     支持：实时行情、历史 K 线、分时数据、股票/指数/ETF 列表。
     """
 
-    def __init__(self, client: Optional[HttpClient] = None):
+    def __init__(
+        self,
+        client: Optional[HttpClient] = None,
+        kline_client: Optional[HttpClient] = None,
+    ):
         self.client = client or HttpClient()
+        self.kline_client = kline_client or HttpClient()
 
     @staticmethod
     def _parse_quote_item(item: Dict[str, Any]) -> QuoteData:
@@ -137,14 +142,17 @@ class EastMoneyAPI:
         """
         params = {
             "secid": security.secid,
+            "ut": "fa5fd1943c7e2b3291495825858346e6",
             "fields1": "f1,f2,f3,f4,f5,f6",
             "fields2": "f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61",
             "klt": period.value,
             "fqt": adjust.value,
+            "beg": "19900101",
             "end": "20500101",
             "lmt": str(limit),
         }
-        data = self.client.get(BASE_KLINE_URL, params=params)
+        headers = {"Referer": f"https://quote.eastmoney.com/{security.code}.html"}
+        data = self.kline_client.get(BASE_KLINE_URL, params=params, headers=headers)
 
         raw = data.get("data") or {}
         klines_raw = raw.get("klines") or []
@@ -336,3 +344,4 @@ class EastMoneyAPI:
     def close(self) -> None:
         """关闭 HTTP 客户端。"""
         self.client.close()
+        self.kline_client.close()

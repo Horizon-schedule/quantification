@@ -127,9 +127,14 @@ def create_app() -> Flask:
         period_key = request.args.get("period", "101")
         period_map = {p.value: p for p in KlinePeriod}
         period = period_map.get(period_key, KlinePeriod.DAILY)
-        df = repo.get_kline_df(code, period=period, limit=limit)
+        try:
+            df = repo.get_kline_df(code, period=period, limit=limit)
+        except Exception as exc:
+            logger.exception("K线获取异常 %s period=%s", code, period_key)
+            return jsonify({"error": f"K线获取失败: {exc}"}), 500
         if df.empty:
-            return jsonify({"error": "无 K 线数据"}), 404
+            hint = "分钟线需东方财富源，日/周/月可自动切换腾讯备用"
+            return jsonify({"error": f"无 K 线数据（{hint}）", "period": period_key}), 404
         df = TechnicalIndicators.calc_all(df)
         return jsonify(_df_to_records(df))
 

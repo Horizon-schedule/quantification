@@ -6,10 +6,10 @@ __pycache__/
 venv/
 .env
 
-# Local data & logs
-data/
-logs/
-output/
+# Local data & logs（仅忽略项目根目录，不影响 quant_platform/data 代码包）
+/data/
+/logs/
+/output/
 *.db
 
 # IDE

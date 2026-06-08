@@ -6,7 +6,7 @@ __pycache__
 *.db
 logs/
 output/
-data/
+/data/
 .venv
 venv/
 .idea
